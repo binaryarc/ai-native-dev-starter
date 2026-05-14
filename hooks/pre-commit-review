@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# pre-commit-review: git diff --staged 를 sub-agent(claude -p)에게 전달해
+# 보안·성능·컨벤션 위반만 잡아낸다. BLOCK 항목이 있으면 커밋 차단.
+# 자기 코드 편향 차단: diff 텍스트만 입력, 코드베이스 컨텍스트 없음.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# ── claude CLI 확인 ───────────────────────────────────────────────────────────
+
+if ! command -v claude &>/dev/null; then
+  echo -e "${YELLOW}⚠${NC}  claude CLI 없음 — diff 리뷰 스킵 (설치: https://claude.ai/code)"
+  exit 0
+fi
+
+# ── diff 수집 ─────────────────────────────────────────────────────────────────
+
+DIFF="$(git diff --staged --unified=5 2>/dev/null)"
+
+if [ -z "$DIFF" ]; then
+  exit 0
+fi
+
+# diff가 너무 크면 (300KB 초과) 스킵 — sub-agent 타임아웃 방지
+DIFF_SIZE=${#DIFF}
+if [ "$DIFF_SIZE" -gt 307200 ]; then
+  echo -e "${YELLOW}⚠${NC}  diff 크기 ${DIFF_SIZE}B > 300KB — diff 리뷰 스킵"
+  exit 0
+fi
+
+# ── 리뷰 프롬프트 ─────────────────────────────────────────────────────────────
+
+REVIEW_PROMPT="You are a strict code reviewer. Your ONLY job is to find SECURITY, PERFORMANCE, and CONVENTION violations in the diff below.
+
+RULES:
+- Report only REAL issues. No style opinions. No suggestions.
+- Do NOT praise the code. Do NOT explain what the code does.
+- Do NOT read files outside this diff. Judge only what you see here.
+- Each issue must be classified as BLOCK or WARN:
+  - BLOCK: Must fix before commit (security vulnerability, data loss risk, crash risk)
+  - WARN: Should fix soon (performance issue, convention violation, code smell)
+
+OUTPUT FORMAT (strict — no other text):
+PASS          (if zero issues found)
+
+or:
+
+BLOCK: <file>:<line> — <one-line reason>
+WARN:  <file>:<line> — <one-line reason>
+
+Categories to check:
+- SECURITY: hardcoded secrets, SQL injection, XSS, command injection, path traversal, insecure deserialization, weak crypto
+- PERFORMANCE: N+1 queries, missing index hint, unbounded loops on large data, unnecessary full-table scan, sync I/O in async context
+- CONVENTION: TODO/FIXME left in production path, print/console.log debug statements, commented-out code blocks (3+ lines), broad exception catch (except Exception / catch (Exception e))
+
+DIFF:
+$DIFF"
+
+# ── sub-agent 실행 ────────────────────────────────────────────────────────────
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  diff 리뷰 (sub-agent)${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# REVIEW_MODEL 환경변수로 오버라이드 가능. 기본값: haiku (빠름·저렴)
+# 보안 민감 프로젝트는 sonnet 권장: export REVIEW_MODEL=sonnet
+REVIEW_MODEL="${REVIEW_MODEL:-claude-haiku-4-5-20251001}"
+
+REVIEW_OUTPUT="$(claude -p \
+  --dangerously-skip-permissions \
+  --model "$REVIEW_MODEL" \
+  --output-format text \
+  --no-session-persistence \
+  "$REVIEW_PROMPT" \
+  2>/dev/null)" || {
+  echo -e "${YELLOW}⚠${NC}  claude 실행 실패 — diff 리뷰 스킵"
+  exit 0
+}
+
+# ── 결과 파싱 ─────────────────────────────────────────────────────────────────
+
+BLOCK_LINES="$(echo "$REVIEW_OUTPUT" | grep -E '^BLOCK:' || true)"
+WARN_LINES="$(echo "$REVIEW_OUTPUT"  | grep -E '^WARN:'  || true)"
+
+# PASS
+if [ -z "$BLOCK_LINES" ] && [ -z "$WARN_LINES" ]; then
+  echo -e "${GREEN}✔${NC}  리뷰 이상 없음"
+  echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  exit 0
+fi
+
+# WARN 출력 (커밋 허용)
+if [ -n "$WARN_LINES" ]; then
+  echo -e "${YELLOW}  WARN (커밋 허용 — 조속히 수정 권장)${NC}"
+  while IFS= read -r line; do
+    echo -e "  ${YELLOW}⚠${NC}  $line"
+  done <<< "$WARN_LINES"
+fi
+
+# BLOCK 출력 (커밋 차단)
+if [ -n "$BLOCK_LINES" ]; then
+  echo ""
+  echo -e "${RED}  BLOCK (커밋 차단 — 수정 필요)${NC}"
+  while IFS= read -r line; do
+    echo -e "  ${RED}✖${NC}  ${BOLD}$line${NC}"
+  done <<< "$BLOCK_LINES"
+  echo ""
+  echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${RED}  커밋 차단: BLOCK 항목을 수정 후 재커밋하세요${NC}"
+  echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  exit 1
+fi
+
+# WARN만 있는 경우
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  리뷰 통과 (WARN 항목 있음 — 커밋 진행)${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+exit 0

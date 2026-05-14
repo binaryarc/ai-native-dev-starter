@@ -1,0 +1,1 @@
+/home/jin/ai-native-dev-starter/.claude/hooks/tdd-guard.py

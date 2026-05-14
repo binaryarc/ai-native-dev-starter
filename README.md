@@ -1,3 +1,13 @@
+---
+name: project-readme
+description: >
+  AI 네이티브 개발 스타터팩 프로젝트 개요. AI 코딩 에이전트를 개발 워크플로의
+  기본 단위로 사용하기 위한 문서, 체크리스트, 프롬프트 템플릿 모음.
+  프로젝트 구조와 시작 방법을 파악할 때 참조.
+type: context
+load: on-demand
+---
+
 # AI Native Dev Starter
 
 AI 코딩 에이전트를 보조 도구가 아니라 개발 워크플로의 기본 단위로 쓰기 위한 문서 스타터팩입니다.

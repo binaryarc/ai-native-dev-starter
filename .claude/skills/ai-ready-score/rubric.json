@@ -1,0 +1,366 @@
+{
+  "version": "1.0.0",
+  "total": 100,
+  "categories": [
+    {
+      "id": "C1",
+      "name": "Context & Documentation",
+      "name_ko": "컨텍스트 및 문서화",
+      "max_score": 20,
+      "description": "AI 에이전트가 코드베이스를 이해하는 데 필요한 문서와 컨텍스트 파일의 존재 및 품질",
+      "checks": [
+        {
+          "id": "C1-1",
+          "name": "CLAUDE.md / AGENTS.md / GEMINI.md 존재",
+          "points": 5,
+          "method": "file_exists",
+          "targets": ["CLAUDE.md", "AGENTS.md", "GEMINI.md", ".claude/CLAUDE.md"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C1-2",
+          "name": "README.md 존재 및 충분한 분량 (200자 이상)",
+          "points": 4,
+          "method": "file_content_length",
+          "targets": ["README.md", "readme.md", "Readme.md"],
+          "min_chars": 200,
+          "partial": true,
+          "partial_points": 2
+        },
+        {
+          "id": "C1-3",
+          "name": "아키텍처 또는 설계 문서 존재",
+          "points": 4,
+          "method": "file_exists_pattern",
+          "patterns": ["docs/**/*.md", "ARCHITECTURE.md", "DESIGN.md", "docs/architecture*", "docs/design*", "docs/ai-rules*"],
+          "partial": false
+        },
+        {
+          "id": "C1-4",
+          "name": "컨텍스트 파일 200줄 이하 유지",
+          "points": 3,
+          "method": "file_line_limit",
+          "targets": ["CLAUDE.md", "AGENTS.md", "GEMINI.md"],
+          "max_lines": 200,
+          "partial": false
+        },
+        {
+          "id": "C1-5",
+          "name": "변경 이력 또는 CHANGELOG 존재",
+          "points": 2,
+          "method": "file_exists",
+          "targets": ["CHANGELOG.md", "CHANGELOG", "docs/history", "docs/CHANGELOG.md"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C1-6",
+          "name": "TODO / 로드맵 문서 존재",
+          "points": 2,
+          "method": "file_exists",
+          "targets": ["TODO.md", "docs/todo.md", "ROADMAP.md", "docs/roadmap.md"],
+          "match": "any",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "name": "Code Structure & Modularity",
+      "name_ko": "코드 구조 및 모듈화",
+      "max_score": 15,
+      "description": "AI가 탐색하기 쉬운 코드 구조, 명확한 레이어 분리, 파일 크기 적정성",
+      "checks": [
+        {
+          "id": "C2-1",
+          "name": "src/ 또는 명확한 소스 디렉토리 존재",
+          "points": 3,
+          "method": "dir_exists",
+          "targets": ["src", "lib", "app", "pkg", "internal"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C2-2",
+          "name": "소스 파일 평균 크기 300줄 이하",
+          "points": 4,
+          "method": "avg_file_lines",
+          "extensions": [".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".go", ".rs"],
+          "max_avg_lines": 300,
+          "partial": true,
+          "partial_threshold": 500,
+          "partial_points": 2
+        },
+        {
+          "id": "C2-3",
+          "name": "단일 파일 1000줄 초과 없음",
+          "points": 3,
+          "method": "no_large_files",
+          "extensions": [".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".go", ".rs"],
+          "max_lines": 1000,
+          "partial": false
+        },
+        {
+          "id": "C2-4",
+          "name": "테스트 코드가 소스와 분리된 구조 (tests/, __tests__, spec/)",
+          "points": 3,
+          "method": "dir_exists",
+          "targets": ["tests", "test", "__tests__", "spec"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C2-5",
+          "name": "설정 파일이 소스 코드와 분리됨",
+          "points": 2,
+          "method": "file_exists",
+          "targets": [".env.example", "config/", "configs/", "settings/"],
+          "match": "any",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "id": "C3",
+      "name": "Test Coverage & Quality",
+      "name_ko": "테스트 커버리지 및 품질",
+      "max_score": 15,
+      "description": "테스트 파일 존재 여부, 테스트 대 소스 비율, CI 연동 여부",
+      "checks": [
+        {
+          "id": "C3-1",
+          "name": "테스트 파일 존재 (test_*.py, *.test.ts 등)",
+          "points": 5,
+          "method": "test_files_exist",
+          "patterns": ["test_*.py", "*_test.py", "*.test.ts", "*.test.tsx", "*.test.js", "*.spec.ts", "*.spec.js", "*Test.java", "*Spec.java"],
+          "min_count": 1,
+          "partial": false
+        },
+        {
+          "id": "C3-2",
+          "name": "테스트 파일 수가 소스 파일의 30% 이상",
+          "points": 4,
+          "method": "test_ratio",
+          "min_ratio": 0.3,
+          "partial": true,
+          "partial_threshold": 0.1,
+          "partial_points": 2
+        },
+        {
+          "id": "C3-3",
+          "name": "CI 설정 파일 존재 (.github/workflows, .gitlab-ci.yml 등)",
+          "points": 4,
+          "method": "file_exists",
+          "targets": [".github/workflows", ".gitlab-ci.yml", ".circleci/config.yml", "Jenkinsfile", ".travis.yml", "azure-pipelines.yml"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C3-4",
+          "name": "커버리지 설정 존재 (.coveragerc, jest coverage 등)",
+          "points": 2,
+          "method": "file_exists",
+          "targets": [".coveragerc", "jest.config.js", "jest.config.ts", "vitest.config.ts", "pytest.ini", "pyproject.toml"],
+          "match": "any",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "id": "C4",
+      "name": "AI Tooling Configuration",
+      "name_ko": "AI 툴링 설정",
+      "max_score": 15,
+      "description": "Claude Code, Codex, Cursor 등 AI 코딩 도구 설정 파일 및 스킬/룰 구성",
+      "checks": [
+        {
+          "id": "C4-1",
+          "name": ".claude/ 디렉토리 존재",
+          "points": 3,
+          "method": "dir_exists",
+          "targets": [".claude"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C4-2",
+          "name": "AI 에이전트 스킬 또는 룰 정의 존재",
+          "points": 4,
+          "method": "file_exists_pattern",
+          "patterns": [".claude/skills/**", ".claude/rules/**", ".cursor/rules/**", ".github/copilot-instructions.md"],
+          "partial": false
+        },
+        {
+          "id": "C4-3",
+          "name": ".cursorignore / .claudeignore / .gitignore AI 관련 제외 설정",
+          "points": 2,
+          "method": "file_exists",
+          "targets": [".cursorignore", ".claudeignore", ".aiignore"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C4-4",
+          "name": "MCP 서버 또는 AI 도구 설정 파일 존재",
+          "points": 3,
+          "method": "file_exists",
+          "targets": [".mcp.json", "mcp.json", ".claude/settings.json", ".cursor/mcp.json"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C4-5",
+          "name": "AI 실수 기록 / lessons 문서 존재",
+          "points": 3,
+          "method": "file_exists_pattern",
+          "patterns": ["docs/ai-mistakes/**", "**/lessons.md", "**/incidents.log", "ai-mistakes/**"],
+          "partial": false
+        }
+      ]
+    },
+    {
+      "id": "C5",
+      "name": "Dependency & Environment",
+      "name_ko": "의존성 및 환경 관리",
+      "max_score": 10,
+      "description": "재현 가능한 환경 설정, 의존성 고정, 컨테이너화 수준",
+      "checks": [
+        {
+          "id": "C5-1",
+          "name": "의존성 잠금 파일 존재 (lockfile)",
+          "points": 4,
+          "method": "file_exists",
+          "targets": ["uv.lock", "poetry.lock", "Pipfile.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock", "go.sum"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C5-2",
+          "name": ".env.example 또는 환경변수 문서 존재",
+          "points": 3,
+          "method": "file_exists",
+          "targets": [".env.example", ".env.sample", ".env.template", "docs/env.md", "docs/environment.md"],
+          "match": "any",
+          "partial": false
+        },
+        {
+          "id": "C5-3",
+          "name": "Docker 또는 컨테이너 설정 존재",
+          "points": 3,
+          "method": "file_exists",
+          "targets": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml", ".devcontainer/devcontainer.json"],
+          "match": "any",
+          "partial": false
+        }
+      ]
+    },
+    {
+      "id": "C6",
+      "name": "Git Hygiene",
+      "name_ko": "Git 위생",
+      "max_score": 15,
+      "description": "커밋 메시지 품질, .gitignore 구성, 브랜치 전략, PR 템플릿",
+      "checks": [
+        {
+          "id": "C6-1",
+          "name": ".gitignore 존재 및 충분한 설정 (10줄 이상)",
+          "points": 4,
+          "method": "file_content_length",
+          "targets": [".gitignore"],
+          "min_lines": 10,
+          "partial": true,
+          "partial_points": 2
+        },
+        {
+          "id": "C6-2",
+          "name": "최근 10개 커밋 메시지 평균 20자 이상",
+          "points": 4,
+          "method": "commit_message_quality",
+          "min_avg_len": 20,
+          "sample": 10,
+          "partial": true,
+          "partial_threshold": 10,
+          "partial_points": 2
+        },
+        {
+          "id": "C6-3",
+          "name": "PR 또는 이슈 템플릿 존재",
+          "points": 3,
+          "method": "file_exists_pattern",
+          "patterns": [".github/pull_request_template.md", ".github/PULL_REQUEST_TEMPLATE/**", ".github/ISSUE_TEMPLATE/**", ".gitlab/merge_request_templates/**"],
+          "partial": false
+        },
+        {
+          "id": "C6-4",
+          "name": "HEAD 기준 feat/fix/chore 등 컨벤셔널 커밋 사용 (50% 이상)",
+          "points": 4,
+          "method": "conventional_commits",
+          "min_ratio": 0.5,
+          "sample": 20,
+          "partial": true,
+          "partial_threshold": 0.2,
+          "partial_points": 2
+        }
+      ]
+    },
+    {
+      "id": "C7",
+      "name": "Security & Secrets Safety",
+      "name_ko": "보안 및 시크릿 안전성",
+      "max_score": 10,
+      "description": "하드코딩된 시크릿 없음, .env 파일 추적 제외, 보안 스캔 설정",
+      "checks": [
+        {
+          "id": "C7-1",
+          "name": ".env 파일이 .gitignore에 포함됨",
+          "points": 4,
+          "method": "gitignore_contains",
+          "patterns": [".env", "*.env", ".env.*"],
+          "partial": false
+        },
+        {
+          "id": "C7-2",
+          "name": "하드코딩 시크릿 패턴 미탐지 (API 키, 토큰 등)",
+          "points": 4,
+          "method": "no_hardcoded_secrets",
+          "secret_patterns": [
+            "(?i)(api_key|apikey|api-key)\\s*=\\s*['\"][a-zA-Z0-9_\\-]{20,}['\"]",
+            "(?i)(secret|password|passwd|pwd)\\s*=\\s*['\"][^'\"]{8,}['\"]",
+            "(?i)(token|access_token|auth_token)\\s*=\\s*['\"][a-zA-Z0-9_\\-\\.]{20,}['\"]",
+            "sk-[a-zA-Z0-9]{20,}",
+            "ghp_[a-zA-Z0-9]{20,}",
+            "AKIA[0-9A-Z]{16}"
+          ],
+          "exclude_patterns": [".env.example", ".env.sample", "test_*", "*_test.*", "*.test.*", "*.spec.*"],
+          "partial": false
+        },
+        {
+          "id": "C7-3",
+          "name": "보안 스캔 도구 설정 존재 (bandit, semgrep, trivy 등)",
+          "points": 2,
+          "method": "file_exists",
+          "targets": [".bandit", "bandit.yaml", ".semgrep.yml", "trivy.yaml", ".snyk", "sonar-project.properties"],
+          "match": "any",
+          "partial": false
+        }
+      ]
+    }
+  ],
+  "grade_thresholds": {
+    "S": 90,
+    "A": 80,
+    "B": 65,
+    "C": 50,
+    "D": 35,
+    "F": 0
+  },
+  "grade_labels": {
+    "S": "AI-Native (즉시 AI 에이전트 투입 가능)",
+    "A": "AI-Ready (경미한 개선 후 사용 가능)",
+    "B": "AI-Friendly (중간 수준 준비됨)",
+    "C": "AI-Assisted (기초 준비 필요)",
+    "D": "AI-Aware (상당한 개선 필요)",
+    "F": "AI-Unready (전면 재구성 필요)"
+  }
+}
